@@ -32,7 +32,7 @@ if (do_ms_data) {
 
   for (k in seq_len(NROW(template_args))) {
     do_ms_loops(fun = "msres_getdatatogether", args = template_args[k, ],
-      do_targets = TRUE)
+      do_targets = TRUE, do_interactions = interactions)
   }
 
 

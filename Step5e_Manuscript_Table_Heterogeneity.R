@@ -2,7 +2,7 @@
 redo <- FALSE
 do_ms <- TRUE
 do_targets <- TRUE
-interactions <- c(TRUE, FALSE)
+interactions <- TRUE
 
 
 # Paths

@@ -144,8 +144,10 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
     res <- readRDS(ftemp)
   }
 
+  dir_temp <- file.path(dir_out, "Tables")
+  dir.create(dir_temp, recursive = TRUE, showWarnings = FALSE)
 
-  ftemp <- file.path(dir_out, "Tables", paste0("Table_Sensitivity_", tag_fix, ".csv"))
+  ftemp <- file.path(dir_temp, paste0("Table_Sensitivity_", tag_fix, ".csv"))
 
   if (!file.exists(ftemp)) {
     temp <- reshape2::melt(res[["sensitivity"]])

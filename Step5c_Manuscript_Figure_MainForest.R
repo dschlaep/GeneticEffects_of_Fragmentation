@@ -1,7 +1,3 @@
-# TODO
-#   - make main figure possible for continuous moderators
-
-
 #--- SETTINGS
 redo <- FALSE
 do_ms <- TRUE
@@ -33,7 +29,7 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
     cor_methods., cor_transforms., weight_methods., dir_res, dir_out = dir_ms_out, ftag)
 
   temp <- lab_responses[match(responses, lab_responses[, "code"]), "hypothesis"]
-  msdat <- msres_addsensitivity(msdat, sided = temp, dir_res, ftag)
+  msdat <- msres_addsensitivity(msdat, sided = temp, interaction_wHabitat3, dir_res, ftag)
 
   if (length(msdat[["modcats"]]) > 0) {
     #--- Gather data for plotting

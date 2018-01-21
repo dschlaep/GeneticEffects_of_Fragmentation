@@ -65,8 +65,8 @@ msres_table_BloombergsK <- function(responses, moderators,
   temp <- reshape2::melt(dat_table[["est"]])
   dat_out <- reshape2::dcast(temp, Var2 + Var3 ~ Var1 + Var4)
   names(dat_out)[1:2] <- c("Moderator", "Phylogeny")
-  dat_out[, "Moderator"] <- clean_labels(dat_out[, "Moderator"], remove_digits = TRUE,
-    break_lines = FALSE)
+  dat_out[, "Moderator"] <- clean_labels(as.character(dat_out[, "Moderator"]),
+    remove_digits = TRUE, break_lines = FALSE)
 
   #--- Save table to file
   dir <- file.path(dir_out, "Tables")
