@@ -31,27 +31,51 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
   stopifnot(lengths(list(fragment_sizes., temp_withControlsL, withNonStandardizedL.,
     cor_methods., cor_transforms., weight_methods.)) == 1L)
 
-  temp1 <- if (temp_withControlsL) "withControls" else "withoutControls"
-  temp_cor_transforms <- if (cor_methods. == "pearson") {
-      cor_transforms.
-    } else {
-      "ztransform"
-    }
-  temp2 <- if (!only_useadj_standardized) "withNonStandardized" else "onlyStandardized"
+  # File identification
+  temp_withNonStandardizedL <- !only_useadj_standardized
+  tag_fix <- filetag_ID(interaction_wHabitat3, fragment_sizes.,
+    withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+    cor_transforms., weight_methods.)
 
-  tag_fix <- paste(fragment_sizes., temp1, temp2, paste0("COR", cor_methods., "-",
-    temp_cor_transforms), weight_methods., sep = "_")
-  if (byHabitat3) {
-    tag_fix <- paste0(tag_fix, "_", "byHabitat3")
-  }
-
-  ftemp1 <- file.path(dir_out, "Figs_Maps", paste0("Fig_MainMap_", tag_fix, "_map.pdf"))
-  ftemp2 <- file.path(dir_out, "Figs_Maps", paste0("Fig_MainMap_", tag_fix, "_map_perResponse.pdf"))
+  ftemp0 <- file.path(dir_out, "Figs_Maps")
+  dir.create(ftemp0, recursive = TRUE, showWarnings = FALSE)
+  ftemp1 <- file.path(ftemp0, paste0("Fig_MainMap_", tag_fix, "_map.pdf"))
+  ftemp2 <- file.path(ftemp0, paste0("Fig_MainMap_", tag_fix, "_map_perResponse.pdf"))
+  ftemp3 <- file.path(ftemp0, paste0("Table_MainMap_", tag_fix, "_map_perResponse.csv"))
 
   # Data: locations
   locs <- dmoderators[, c("Effect_longitude", "Effect_latitude", "Habitat3")]
   locs[, "ID_locs"] <- apply(locs[, c("Effect_longitude", "Effect_latitude")], 1,
     function(x) paste(round(x, 0), collapse = "_"))
+
+  # Data: continents of study locations
+  quick_continents <- list(
+    Asia = list(xlim = c(25, 180), ylim = c(0, 65)),
+    Africa = list(xlim = c(-25, 60), ylim = c(-40, 35)),
+    Australia = list(xlim = c(110, 180), ylim = c(-40, -10)),
+    Europe = list(xlim = c(-7, 25), ylim = c(35, 65)),
+    MesoAmerica = list(xlim = c(-105, -70), ylim = c(5, 20)),
+    NorthAmerica = list(xlim = c(-130, -60), ylim = c(30, 50)),
+    SouthAmerica = list(xlim = c(-90, -25), ylim = c(-40, 5))
+  )
+
+  continents <- names(quick_continents)
+
+  cont <- sapply(quick_continents, function(x) {
+    with(locs, Effect_longitude > x[["xlim"]][1] & Effect_longitude < x[["xlim"]][2] &
+        Effect_latitude > x[["ylim"]][1] & Effect_latitude < x[["ylim"]][2])
+  })
+
+  stopifnot(apply(cont, 1, sum) >= 1)
+
+  cont_names <- rep(NA, nrow(cont))
+  for (k in seq_along(continents)) {
+    cont_names[cont[, k]] <- continents[k]
+  }
+
+  locs[, "Continent"] <- cont_names
+
+  # Data: unique locations
   dlocs <- data.frame(locs, matrix(0, nrow = nrow(locs), ncol = length(responses)))
   colnames(dlocs)[-seq_len(ncol(locs))] <- responses
 
@@ -59,6 +83,7 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
   dlocs_uni <- data.frame(dlocs_uni, matrix(0, nrow = nrow(dlocs_uni),
     ncol = length(responses)))
   colnames(dlocs_uni)[-seq_len(ncol(locs))] <- responses
+
 
   # Data: response
   resp <- deffects[, 2 - as.integer(temp_withControlsL), , responses, fragment_sizes.,
@@ -79,11 +104,35 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
     dlocs_uni[ids > 0, ir] <- temp[ids, 2]
   }
 
+
+  # Data-bases for plotting and tabulating
   dlocs[, "Response_any"] <- apply(dlocs[, responses], 1, sum)
   dlocs_uni[, "Response_any"] <- apply(dlocs_uni[, responses], 1, sum)
   dlocs_uni2 <- dlocs_uni[dlocs_uni[, "Response_any"] > 0, ]
 
+  levels_hab3 <- if (byHabitat3) levels(dlocs[, "Habitat3"]) else NA
 
+  #--- Appendix S5: Table S1. Number of studies per continent
+  res <- expand.grid(Response = responses, Habitat = levels_hab3,
+    Continent = continents, stringsAsFactors = FALSE)
+  res[, "N"] <- NA
+
+  for (i in seq_len(nrow(res))) {
+    iuse <- dlocs_uni2[, res[i, "Response"]] > 0
+    if (byHabitat3) {
+      iuse <- iuse & as.character(dlocs_uni2[, "Habitat3"]) == res[i, "Habitat"]
+    }
+    iuse <- iuse & as.character(dlocs_uni2[, "Continent"]) == res[i, "Continent"]
+
+    res[i, "N"] <- sum(iuse)
+  }
+
+  temp <- reshape2::melt(res)
+  write.csv(reshape2::dcast(temp, Response + Continent ~ Habitat),
+    file = ftemp3)
+
+
+  #--- Figure 1 && Appendix S5: Figure S1
   # Maps
   library("maps")
   aspr <- fws / 6
@@ -93,7 +142,6 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
   ylims <- range(temp_dlocs[, "Effect_latitude"])
   bdw <- min(c(diff(xlims), diff(ylims))) / 25
   fcols <- colorRampPalette(c("white", blues9[1:3], blues9[6], "purple3", "purple4"))
-  levels_hab3 <- if (byHabitat3) levels(dlocs[, "Habitat3"]) else NA
 
   pdf(height = aspr * 2.75 * if (byHabitat3) 2 else 1, width = fws, file = ftemp1)
   par_prev <- if (byHabitat3) {
@@ -117,7 +165,7 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
     with(iuse, smoothScatter(Effect_longitude, Effect_latitude, add = TRUE,
       bandwidth = bdw, nbin = c(720, 180), xlim = c(-180, 180), ylim = c(-90, 90),
       nrpoints = 0, colramp = fcols))
-    map(add = TRUE)
+    map(res = 0, add = TRUE)
     with(iuse, points(Effect_longitude, Effect_latitude,
       col = "orange", lwd = 1, cex = 0.5, pch = 4))
     abline(h = 0, col = "gray")
@@ -132,7 +180,6 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
 
   par(par_prev)
   dev.off()
-
 
   #--- Map by responses (and by habitat3)
   dim_fig <- c(if (byHabitat3) length(responses) else 2, 2)
@@ -194,14 +241,16 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
       } else {
         axis(side = 2, labels = FALSE)
       }
-      with(iuse, smoothScatter(Effect_longitude, Effect_latitude, add = TRUE,
-        bandwidth = bdw, nbin = c(720, 180), xlim = c(-180, 180), ylim = c(-90, 90),
-        nrpoints = 0, colramp = fcols))
-      map(add = TRUE)
+      if (FALSE) {
+        with(iuse, smoothScatter(Effect_longitude, Effect_latitude, add = TRUE,
+          bandwidth = bdw, nbin = c(720, 180), xlim = c(-180, 180), ylim = c(-90, 90),
+          nrpoints = 0, colramp = fcols))
+      }
+      map(res = 0, add = TRUE)
       with(iuse, points(Effect_longitude, Effect_latitude,
-        col = "orange", lwd = 1, cex = 1, pch = 4))
+        col = "red", lwd = 1, cex = 1, pch = 4))
       abline(h = 0, col = "gray")
-
+#browser()
       #mtext(side = 3, adj = 0.025, font = 2, line = -1.5,
       #  text = paste0("(", letters[ir], ") response = ", responses[ir]))
       temp <- lab_responses[responses[ir] == lab_responses[, "code"], "out"]
@@ -220,25 +269,17 @@ msmap_metaanalysis <- function(responses, fragment_sizes. = fragment_sizes,
 
 if (do_ms) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, dir_out = dir_res0
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(dir_res = dir_res_, dir_out = dir_res0)
       )
 
     } else {
-      list(
-        only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = full_design[["s6_cortransform"]],
-        weight_methods. = full_design[["d7_weightmethod"]],
-        dir_res = dir_res_, dir_out = dir_res0
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(dir_res = dir_res_, dir_out = dir_res0)
       )
     }
 

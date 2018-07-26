@@ -326,6 +326,8 @@ attempt_multilevel_rma <- function(data, yi, vi, fmods = NULL, intercept = FALSE
   account_repeats = FALSE, account_phylo = FALSE, tree = NULL, evolution = c("BM", "OU"),
   evolution_BM_lambda = 1, evolution_OU_alpha = 0) {
 
+  omax <- 1000
+
   if (NROW(data) > 1) {
     if (is.null(fmods)) {
       intercept <- TRUE
@@ -409,9 +411,12 @@ attempt_multilevel_rma <- function(data, yi, vi, fmods = NULL, intercept = FALSE
       corR <- NULL
     }
 
+    # First attempt with `nlminb` but with a maximum of 1000 instead of 150 iterations
     m <- try(metafor::rma.mv(yi = yi, V = vi, intercept = intercept, mods = fmods,
       random = frand, struct = inner_struct, W = wi, R = corR, data = data,
-      method = "REML", test = "t"), silent = TRUE)
+      method = "REML", test = "t", control =
+        list(iter.max = omax, eval.max = omax)),
+      silent = TRUE)
 
 if (FALSE) {
   res[["ml2"]][["mod"]][["fit"]] <- m
@@ -428,20 +433,31 @@ if (FALSE) {
     slab = rownames(temp$b))
 }
 
-    # Second attempt to fit rma model but with "Nelder-Mead" from 'optim' and
-    # more iterations
+    # Second attempt to fit rma model but with "Nelder-Mead" from 'optim'
     if (inherits(m, "try-error")) {
       m <- try(metafor::rma.mv(yi = yi, V = vi, intercept = intercept, mods = fmods,
         random = frand, struct = inner_struct, W = wi, R = corR, data = data,
-        method = "REML", test = "t", control = list(optimizer = "optim",
-        optmethod = "Nelder-Mead", maxit = 1000)), silent = TRUE)
+        method = "REML", test = "t", control =
+          list(optimizer = "optim", optmethod = "Nelder-Mead", maxit = omax)),
+        silent = TRUE)
     }
 
-    # Third attempt to fit rma model but with "ucminf"
+    # Third attempt to fit rma model but with the quasi-Newton method "BFGS" from 'optim'
     if (inherits(m, "try-error")) {
       m <- try(metafor::rma.mv(yi = yi, V = vi, intercept = intercept, mods = fmods,
         random = frand, struct = inner_struct, W = wi, R = corR, data = data,
-        method = "ML", test = "t", control = list(optimizer = "ucminf")), silent = TRUE)
+        method = "REML", test = "t", control =
+          list(optimizer = "optim", optmethod = "BFGS", maxit = omax)),
+        silent = TRUE)
+    }
+
+    # Fourth attempt to fit rma model but with "ucminf"
+    if (inherits(m, "try-error")) {
+      m <- try(metafor::rma.mv(yi = yi, V = vi, intercept = intercept, mods = fmods,
+        random = frand, struct = inner_struct, W = wi, R = corR, data = data,
+        method = "ML", test = "t", control =
+          list(optimizer = "ucminf", maxit = omax, maxeval = omax)),
+        silent = TRUE)
     }
 
     if (inherits(m, "try-error")) {
@@ -689,3 +705,39 @@ fit_multilevel <- function(sdata, yin, vin, win, intercept = FALSE, interaction 
 
   out
 }
+
+
+# Create name uniquely describing analysis factors and levels
+filetag_ID <- function(interaction_wHabitat3, fragment_sizes.,
+  withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+  cor_transforms., weight_methods.) {
+
+  temp_withControlsL <- if (only_wo_controls) FALSE else withControlsL.
+
+  stopifnot(lengths(list(fragment_sizes., temp_withControlsL, cor_methods.,
+    cor_transforms., weight_methods.)) == 1L)
+
+  temp1 <- if (temp_withControlsL) "withControls" else "withoutControls"
+  temp_cor_transforms <- if (cor_methods. == "pearson") {
+      cor_transforms.
+    } else {
+      "ztransform"
+    }
+  temp2 <- if (temp_withNonStandardizedL) {
+      "withNonStandardized"
+    } else {
+      "onlyStandardized"
+    }
+
+  p1 <- paste(fragment_sizes., temp1, temp2, sep = "_")
+  p2 <- paste0("COR", cor_methods., "-", temp_cor_transforms)
+  p3 <- weight_methods.
+
+  if (interaction_wHabitat3) {
+    paste(p1, "modXhabitat", p2, p3, sep = "_")
+
+  } else {
+    paste(p1, p2, p3, sep = "_")
+  }
+}
+

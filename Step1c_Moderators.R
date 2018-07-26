@@ -11,7 +11,7 @@ dir_out <- file.path(dir_prj, "2_Data", "5_DataCleaned")
 
 # File names
 if (!exists("tag_newdate")) tag_newdate <- format(Sys.Date(), "%Y%m%d")
-if (!exists("tag_usedate")) tag_usedate <- "20171107"
+if (!exists("tag_usedate")) tag_usedate <- "20180705" #"20180112" # "20171107"
 
 ftaxonomy <- file.path(dir_in, "20170130_taxonomy.rda")
 ftaxonomy_new <- file.path(dir_in, paste0(tag_newdate, "_taxonomy.rda"))
@@ -68,8 +68,9 @@ if (file.exists(ftaxonomy)) {
 if (!do_taxonomy) {
   ids <- match(specieslist2, test_taxonomy$specieslist2, nomatch = 0)
 
-  if (identical(specieslist2, test_taxonomy$specieslist2[ids])) {
-    tax2 <- get("tax2", envir = test_taxonomy)[ids]
+  if (identical(specieslist2, test_taxonomy$specieslist2[ids]) &&
+      "tax2" %in% names(test_taxonomy)) {
+    tax2 <- get("tax2", envir = test_taxonomy)[ids, ]
   } else {
     do_taxonomy <- TRUE
   }
@@ -242,7 +243,7 @@ if (FALSE) {
 
 
 #--- eol TraitBank: http://www.eol.org/info/traitbank
-
+if (FALSE) {
 # Available traits/moderators
 # TraitBank currently features over 11 million records related to more than 330 attributes for 1.7 million taxa obtained from over 50 data sources.
 
@@ -279,8 +280,8 @@ if (!do_eol) {
   ids <- match(specieslist2, test_eol$specieslist2, nomatch = 0)
 
   if (identical(specieslist2, test_eol$specieslist2[ids])) {
-    eol_traits <- get("eol_traits", envir = test_eol)[ids]
-    eol_traits2 <- get("eol_traits2", envir = test_eol)[ids]
+    eol_traits <- get("eol_traits", envir = test_eol)[ids, ]
+    eol_traits2 <- get("eol_traits2", envir = test_eol)[ids, ]
   } else {
     do_eol <- TRUE
   }
@@ -370,10 +371,10 @@ eol_traits4 <- eol_traits4[apply(eol_traits4, 1, function(x) any(!is.na(x))), ]
 if (FALSE)
   write.csv(eol_traits4, file = file.path(dir_in, "20170220_SpeciesTraits_EOLtraitbank.csv"))
 
-
+}
 
 #--- IUCN red list: www.iucnredlist.org
-
+if (FALSE) {
 # Available traits/moderators
 #   - geographic range
 #   - habitat and ecology
@@ -410,7 +411,7 @@ traits_tryDB[order(traits_tryDB$AccSpecNum, decreasing = TRUE), ][1:20, ]
     #146      28                                                             Dispersal syndrome 354368      817 299601      10045 NA
     #478     154                                                                     Leaf shape  35406     6857  33028       9085 NA
 
-
+}
 
 #------------------------------------
 #--- Species traits extracted from articles
@@ -421,8 +422,14 @@ dat_traits_plants <- gdata::read.xls(fname_traits_plants, as.is = TRUE, skip = 1
 names(dat_traits_plants) <- temp
 dat_traits_plants[dat_traits_plants == ""] <- NA
 
-itemp <- match(dat0$ID_article, dat_traits_plants$Article_ID, nomatch = 0)
+# join trait data from article x species table to `dat0`
+  # account that 8 articles contain data of multiple species
+  dat0_id2 <- apply(dat0[, c("ID_article", "Species_resolved")], 1, paste, collapse = "_")
+  trait_id2 <- apply(dat_traits_plants[, c("Article_ID", "Species")], 1, paste, collapse = "_")
+  itemp <- match(dat0_id2, trait_id2, nomatch = 0)
+
 iuse <- itemp > 0
+
 if (grepl("SpeciesTraits_Plants16.3.17", basename(fname_traits_plants))) {
   ctemp <- c("Lifeform", "Age..years.", "Sex", "Self_compatibility", "Mating_system",
     "Pollination_syndrome", "Pollination_vector", "Seed_dispersal_vector", "Remarks")
@@ -447,7 +454,7 @@ temp <- rep(NA, nrow(dat0))
 temp[dat0$Plants_Age_years %in% c("1")] <- 1 # 1-2 yrs
 temp[dat0$Plants_Age_years %in% c("<10", "<5", "3-10", "5-8")] <- 2 # 3-10 yrs
 temp[dat0$Plants_Age_years %in% c(">10", "13-18")] <- 3 # 11-15 yrs
-temp[dat0$Plants_Age_years %in% c("<50", ">15", ">25", "20-50", "30")] <- 4 # 16-50 yrs
+temp[dat0$Plants_Age_years %in% c("<50", ">15", ">25", "20", "20-50", "30")] <- 4 # 16-50 yrs
 temp[dat0$Plants_Age_years %in% c("<100", ">50", "50-100")] <- 5 # 51-100 yrs
 temp[dat0$Plants_Age_years %in% c(">100")] <- 6 # 101-200 yrs
 temp[dat0$Plants_Age_years %in% c(">200")] <- 7 # >200 yrs
@@ -502,8 +509,14 @@ dat_traits_animals <- gdata::read.xls(fname_traits_animals, sheet = "Data", as.i
 names(dat_traits_animals) <- temp
 dat_traits_animals[dat_traits_animals == ""] <- NA
 
-itemp <- match(dat0$ID_article, dat_traits_animals$Article_ID, nomatch = 0)
+# join trait data from article x species table to `dat0`
+  # account that 6 articles contain data of multiple species
+  dat0_id2 <- apply(dat0[, c("ID_article", "Species_resolved")], 1, paste, collapse = "_")
+  trait_id2 <- apply(dat_traits_animals[, c("Article_ID", "Species")], 1, paste, collapse = "_")
+  itemp <- match(dat0_id2, trait_id2, nomatch = 0)
+
 iuse <- itemp > 0
+
 ctemp <- c("Max_adult_lenght", "Max_adult_mass", "Generation_lenght", "Max_age",
   "Dispersal_fine", "Trophic_group")
 ctemp_new <- paste0("Animals_", c("Length_cat", "Mass_cat", "Generation_class", "Age_class",
@@ -611,6 +624,11 @@ dat0[, "Animals_Age_cat"] <- factor(temp, levels = seq_along(age_categories),
   labels = age_categories, ordered = TRUE)
 table(dat0$Animals_Age_cat, dat0$Animals_Age_years)
 
+table(dat0$Animals_Age_cat, dat0$Animals_Age_years)
+temp <- sapply(list(dat0$Animals_Age_cat, dat0$Animals_Age_years),
+  function(x) sum(!is.na(x)))
+stopifnot(temp[1] >= temp[2])
+
 
 table(dat0$Animals_Generation_class, dat0$Animals_Generation_years)
 temp <- sapply(list(dat0$Animals_Generation_class, dat0$Animals_Generation_years),
@@ -638,6 +656,13 @@ if (temp[1] < temp[2]) {
 } else {
   stop()
 }
+
+table(dat0$Animals_Generation_cat, dat0$Animals_Generation_years)
+temp <- sapply(list(dat0$Animals_Generation_cat, dat0$Animals_Generation_years),
+  function(x) sum(!is.na(x)))
+stopifnot(temp[1] >= temp[2])
+
+
 
 #--- Species age
 table(dat0$Plants_Age_cat)

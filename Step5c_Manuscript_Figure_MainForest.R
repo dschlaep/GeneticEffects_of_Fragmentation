@@ -2,6 +2,7 @@
 redo <- FALSE
 do_ms <- TRUE
 do_targets <- TRUE
+do_popsize <- TRUE
 interactions <- c(TRUE, FALSE)
 
 
@@ -66,6 +67,7 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
           pphylo = x[["pphylo"]][["d"]])
 
         agree <- msdat[["sensitivity"]]["agreement", moderators[ig], responses[ir]][[1]]
+        colnames(agree) <- c("all_un", "all_mv", "aphylo", "pphylo")
 
         has_fits <- sapply(fits, function(f) f[["has_fit"]])
 
@@ -86,14 +88,12 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
           }
           coefnames_all <- sort(unique(unlist(coefnames)))
 
-          for (ift in seq_along(lab_fittypes[, "code"])) if (has_fits[ift]) {
-            ft <- lab_fittypes[ift, "code"]
-
+          for (ft in lab_fittypes[, "code"]) if (has_fits[ft]) {
             # Agreement of sensitivity analysis
             temp1 <- remove_modcatID(msdat[["modcats"]])
             temp2 <- remove_modcatID(dimnames(agree)[[1]])
             ids <- match(temp1, temp2, nomatch = 0)
-            dat_forest[["agree"]][ir, ids > 0, ft] <- agree[ids, ift]
+            dat_forest[["agree"]][ir, ids > 0, ft] <- agree[ids, ft]
 
             # Sample sizes per level
             ids <- match(msdat[["modcats"]], coefnames[[ft]], nomatch = 0)
@@ -146,12 +146,15 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
     h.edgeL <- max(0.05, min(0.3, 0.3 - 0.0125 * ctemp))
     h.edgeU <- max(0.05, min(0.3, 0.3 - 0.01 * ctemp))
     w.panel <- 3
-    w.edgeL <- ceiling(105 * cex_txt * max(strwidth(labs_mod_levels, units = "inches"))) / 100
+    temp <- max(strwidth(c(labs_mod_levels, "(pc = 00, 00, 00, 00%)"),
+      units = "inches"))
+    w.edgeL <- ceiling(105 * cex_txt * temp) / 100
     w.edgeR <- 0.1
 
     pdf(height = h.edgeL + h.panel * dim_fig[1] + h.edgeU,
       width = w.edgeL + w.panel * dim_fig[2] + w.edgeR,
-      file = file.path(dir, paste0("Fig_MainForest_", ftag, "_", msdat[["tag_fix"]], ".pdf")))
+      file = file.path(dir, paste0("Fig_MainForest_", ftag, "_",
+      msdat[["tag_fix"]], ".pdf")))
 
     temp <- c(
       rep(0, 1 + dim_fig[1] + 1),
@@ -209,7 +212,7 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
           paste0("(n = ", paste0(k, collapse = ", "), ")")
         })
       ags <- apply(round(100 * dat_forest[["agree"]][responses[ir], , ]), 1, function(k) {
-        paste0("(pc = ", paste0(k, collapse = ", "), ")")
+        paste0("(pc = ", paste0(k, collapse = ", "), "%)")
       })
 
       do_yaxis <- panels_vertical || ir == 1L
@@ -240,7 +243,12 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
         mtext(side = 2, at = ys, text = temp, cex = cex_txt, adj = 0.5, las = 1)
       }
 
+      # Left x-position for annotations
       datx <- xlims[1] - if (do_yaxis) 1.5 else 0
+      # Determine left-most x-value of figure region in user coordinates
+      finx_usr <- par("usr")[1] - par("plt")[1] * par("fin")[1] *
+        diff(par("usr")[1:2]) / par("pin")[1]
+      datx <- max(finx_usr, datx)
 
       # Panel identification text
       if (length(responses) > 1) {
@@ -249,6 +257,9 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
           line = -1, adj = 0)
       }
 
+      # Zero effect line
+      segments(x0 = 0, y0 = ylims[1], y1 = ylims[2], lwd = 2, lty = 1, col = "gray")
+
       # Add for each fit_type
       for (ift in seq_along(lab_fittypes[, "code"])) {
         d <- dat_forest[["est"]][responses[ir], , lab_fittypes[, "code"][ift], ]
@@ -256,10 +267,11 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
         at_ys <- ys + (nm / 2 - ift) / (2 * nm)
 
         # Add mean and 95%-CI
-        points(x = d[, "beta"], y = at_ys, pch = 4, col = lab_fittypes[ift, "col"])
+        points(x = d[, "beta"], y = at_ys, pch = 4, lwd = 2,
+          col = lab_fittypes[ift, "col"])
         has_n <- Ns >= 3
         arrows(x0 = d[has_n, "ci.lb"], x1 = d[has_n, "ci.ub"], y0 = at_ys[has_n],
-          angle = 90, code = 3, length = 1 / (4 * nm + 2),
+          angle = 90, code = 3, length = 1 / (4 * nm + 3), lwd = 2,
           col = lab_fittypes[ift, "col"])
       }
 
@@ -268,11 +280,14 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
         segments(x0 = datx, x1 = xlims[2], y0 = ys_starts, lty = 2, col = "black", xpd = NA)
       }
 
-      # Zero effect line
-      segments(x0 = 0, y0 = ylims[1], y1 = ylims[2], lwd = 2, lty = 1, col = "gray")
-
       # Legend
-      if (ir == 1) {
+      if (TRUE && ir == length(responses)) {
+        legend(x = xlims[2], y = ys_starts[1] - 0.1, xjust = 1, yjust = 0.5, xpd = NA,
+          bg = "white", ncol = 1, legend = lab_fittypes[, "out"], cex = cex_txt,
+          col = lab_fittypes[, "col"], pch = 4, lwd = 3, pt.cex = cex)
+      }
+
+      if (FALSE && ir == 1) {
         legend(x = -0.75, y = ys_starts[1] - 0.1, xjust = 0, yjust = 0, xpd = NA,
           bg = "white", ncol = 2, legend = lab_fittypes[, "out"], cex = cex_txt,
           col = lab_fittypes[, "col"], pch = 4, lwd = 2, pt.cex = cex)
@@ -291,36 +306,23 @@ msres_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FA
 
 if (do_ms) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
 
     } else {
-      # list(
-      #   only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-      #   only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-      #   fragment_sizes. = full_design[["s4_fragsize"]],
-      #   cor_methods. = full_design[["s5_cormethod"]],
-      #   cor_transforms. = full_design[["s6_cortransform"]],
-      #   weight_methods. = full_design[["d7_weightmethod"]],
-      #   dir_res = dir_res_
-      # )
-      list(
-        only_wo_controls = FALSE, withControlsL. = FALSE,
-        only_useadj_standardized = FALSE, withNonStandardizedL. = TRUE,
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
     }
+
+  if (do_popsize) {
+    template_args[["fragment_sizes."]] <- "Pop_size_n-published"
+  }
 
   template_args <- expand.grid(template_args, stringsAsFactors = FALSE)
 

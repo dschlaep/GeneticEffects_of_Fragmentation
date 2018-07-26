@@ -15,25 +15,26 @@ effect_groups <- c("all", "Forests", "Non-Forests")
 
 marker_classes <- c("codominant", "dominant", "proteins", "uniparental")
 
-if (!exists("tag_usedate")) tag_usedate <- "20171107"
+if (!exists("tag_outdate")) tag_outdate <- "20180709" # "20180112"
+if (!exists("tag_usedate")) tag_usedate <- "20180705" #"20180112" #"20171107"
 
 
 # Paths
 dir_prj <- "Prj04_GenetFragment_MetaAnalysis"
 dir_in <- file.path(dir_prj, "2_Data", "4_DataExtracted")
 dir_out1 <- file.path(dir_prj, "2_Data", "5_DataCleaned")
-dir_out2 <- file.path(dir_prj, paste0("4_Results_v", tag_usedate))
-dir.create(dir_out2, showWarnings = FALSE)
+dir_out2 <- file.path(dir_prj, paste0("4_Results_v", tag_outdate))
+dir.create(dir_out2, recursive = TRUE, showWarnings = FALSE)
 dir_big <- file.path("~", "Downloads", "BigData", paste0("4_Results_v", tag_usedate))
-dir.create(dir_big, showWarnings = FALSE)
+dir.create(dir_big, recursive = TRUE, showWarnings = FALSE)
 
 dir_res_ <- file.path(dir_big, "__AnalysisOutput")
 dir_res0 <- file.path(dir_out2, "0_Miscellaneous")
-dir_res1 <- file.path(dir_out2, "1_DecreasedGeneticDiversity")
-dir_res2 <- file.path(dir_out2, "2_IncreasedInbreeding")
 dir_res12 <- file.path(dir_out2, "1-2_GeneticDiversity&Inbreeding")
 dir_res3 <- file.path(dir_out2, "3_TimeEffects")
 
+temp <- sapply(c(dir_res_, dir_res0, dir_res12, dir_res3),
+  function(path) dir.create(path, recursive = TRUE, showWarnings = FALSE))
 
 # File names
 fout_esr <- file.path(dir_out1, paste0(tag_usedate, "_EffectSize_Correlation.rda"))
@@ -97,3 +98,21 @@ full_design <- list(
   d7_weightmethod = weight_methods)
 
 
+design_arguments <- list(
+  args_target = list(
+    withControlsL. = std_design[["s1_wcontr"]],
+    only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
+    fragment_sizes. = std_design[["s4_fragsize"]],
+    cor_methods. = std_design[["s5_cormethod"]],
+    cor_transforms. = std_design[["s6_cortransform"]],
+    weight_methods. = std_design[["d7_weightmethod"]]
+  ),
+
+  args_full = list(
+    withControlsL. = full_design[["s1_wcontr"]],
+    only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
+    fragment_sizes. = full_design[["s4_fragsize"]],
+    cor_methods. = full_design[["s5_cormethod"]],
+    cor_transforms. = full_design[["s6_cortransform"]],
+    weight_methods. = full_design[["d7_weightmethod"]]
+  ))

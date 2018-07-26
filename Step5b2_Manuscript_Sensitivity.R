@@ -1,7 +1,6 @@
 #--- SETTINGS
 redo <- FALSE
 do_ms <- TRUE
-do_targets <- TRUE
 interactions <- c(TRUE, FALSE)
 
 
@@ -26,11 +25,40 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
       ftag
     }
 
+  design <- expand.grid(args_full, stringsAsFactors = FALSE, KEEP.OUT.ATTRS = FALSE)
+  is_target <- rep(TRUE, NROW(design))
+  for (k in seq_along(args_target)) {
+    is_target <- is_target & design[, names(args_target)[[k]]] == args_target[[k]]
+  }
+  stopifnot(sum(is_target) == 1)
+  design[, "is_target"] <- is_target
+
+  #--- Load analysis outputs: only 'responses' and 'moderators' allowed to vary
+  msdat <- vector(mode = "list", length = NROW(design))
+  for (k in seq_len(NROW(design))) {
+    msdat[[k]] <- msres_getdatatogether(responses, moderators,
+      interaction_wHabitat3,
+      fragment_sizes. = design[k, "fragment_sizes."],
+      withControlsL. = design[k, "withControlsL."],
+      only_wo_controls = FALSE, # i.e., use value(s) of `withControlsL.`
+      withNonStandardizedL. = design[k, "withNonStandardizedL."],
+      only_useadj_standardized = design[k, "only_useadj_standardized"],
+      cor_methods. = design[k, "cor_methods."],
+      cor_transforms. = design[k, "cor_transforms."],
+      weight_methods. = design[k, "weight_methods."],
+      dir_res, dir_out = dir_ms_out, ftag)
+  }
+
+  modcats <- lapply(msdat, function(x) x[["modcats"]])
+  stopifnot(any(lengths(modcats) > 0))
+  modcats <- sort(unique(unlist(modcats)))
+
+  #--- data
   dir_sens <- file.path(dir_res, "Datasets_Sensitivity")
   dir.create(dir_sens, showWarnings = FALSE)
   ftemp <- file.path(dir_sens, paste0("Data_Sensitivity_", tag_fix, ".rds"))
 
-  if (!file.exists(ftemp)) {
+  if (redo || !file.exists(ftemp)) {
     id_target <- sapply(names(args_target), function(name)
       which(args_full[[name]] == args_target[[name]]))
     stopifnot(lengths(args_target) == 1, length(interaction_wHabitat3) == 1,
@@ -39,35 +67,6 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
     outcomes <- c("CI_lt0", "CI_with0", "CI_gt0")
     fit_types <- c("all_un", "all_mv", "aphylo", "pphylo")
     fit_types_legend <- c("Random-Effect", "Multi-Level", "Animal-Phylo", "Plant-Phylo")
-
-    design <- expand.grid(args_full, stringsAsFactors = FALSE, KEEP.OUT.ATTRS = FALSE)
-    is_target <- rep(TRUE, NROW(design))
-    for (k in seq_along(args_target)) {
-      is_target <- is_target & design[, names(args_target)[[k]]] == args_target[[k]]
-    }
-    stopifnot(sum(is_target) == 1)
-    design[, "is_target"] <- is_target
-
-    msdat <- vector(mode = "list", length = NROW(design))
-
-    #--- Load analysis outputs: only 'responses' and 'moderators' allowed to vary
-    for (k in seq_len(NROW(design))) {
-      msdat[[k]] <- msres_getdatatogether(responses, moderators,
-        interaction_wHabitat3,
-        fragment_sizes. = design[k, "fragment_sizes."],
-        withControlsL. = design[k, "withControlsL."],
-        only_wo_controls = design[k, "only_wo_controls"],
-        withNonStandardizedL. = design[k, "withNonStandardizedL."],
-        only_useadj_standardized = design[k, "only_useadj_standardized"],
-        cor_methods. = design[k, "cor_methods."],
-        cor_transforms. = design[k, "cor_transforms."],
-        weight_methods. = design[k, "weight_methods."],
-        dir_res, dir_out = dir_ms_out, ftag)
-    }
-
-    modcats <- lapply(msdat, function(x) x[["modcats"]])
-    stopifnot(any(lengths(modcats) > 0))
-    modcats <- sort(unique(unlist(modcats)))
 
     #--- Get model results
     out_res <- array(NA,
@@ -124,15 +123,17 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
       }
     }
 
-
-    #--- Calculate sensivity
-    # Make sure no dimension is beeing dropped (e.g., if responses = "Fis")
+    #--- Target outcome:
+    # wrap subset in `array` to make sure no dimension is beeing dropped
+    # (e.g., if responses = "Fis")
     target <- array(out_res[, , design[, "is_target"], , ], dim = dim(out_res)[-3],
       dimnames = dimnames(out_res)[-3])
 
+    #--- Calculate sensivity:
     res <- list(
       design = design,
       N = nrow(design),
+      # Sensitivity: sum across 'design' dimension of 'out_res
       sensitivity = apply(out_res, c(1:2, 4:5), sum, na.rm = TRUE),
       target = target,
       out_res = out_res
@@ -144,12 +145,14 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
     res <- readRDS(ftemp)
   }
 
+
+  #-- Convert 'sensitivity' array into table and write to disk file
   dir_temp <- file.path(dir_out, "Tables")
   dir.create(dir_temp, recursive = TRUE, showWarnings = FALSE)
 
   ftemp <- file.path(dir_temp, paste0("Table_Sensitivity_", tag_fix, ".csv"))
 
-  if (!file.exists(ftemp)) {
+  if (redo || !file.exists(ftemp)) {
     temp <- reshape2::melt(res[["sensitivity"]])
     table_sens <- reshape2::dcast(temp, Var1 + Var2 + Var3 ~ Var4)
     colnames(table_sens)[1:3] <- c("Response", "Moderator", "Model")
@@ -174,22 +177,8 @@ msres_sensitivity <- function(responses, moderators, interaction_wHabitat3 = FAL
 if (do_ms) {
 
   args <- list(
-    args_target = list(
-      only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-      only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-      fragment_sizes. = std_design[["s4_fragsize"]],
-      cor_methods. = std_design[["s5_cormethod"]],
-      cor_transforms. = std_design[["s6_cortransform"]],
-      weight_methods. = std_design[["d7_weightmethod"]]
-    ),
-    args_full = list(
-      only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-      only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-      fragment_sizes. = full_design[["s4_fragsize"]],
-      cor_methods. = full_design[["s5_cormethod"]],
-      cor_transforms. = full_design[["s6_cortransform"]],
-      weight_methods. = full_design[["d7_weightmethod"]]
-    ),
+    args_target = design_arguments[["args_target"]],
+    args_full = design_arguments[["args_full"]],
 
     dir_res = dir_res_, panels_vertical = FALSE
   )
@@ -198,7 +187,8 @@ if (do_ms) {
     dir_out = list(dir_res0, dir_res12, dir_res12, dir_res12, dir_res3)
   )
 
-  print(paste("N =", prod(sapply(args[["args_full"]], length)))) # 72
+  # 144 (full_design[["s1_wcontr"]]), 72 (std_design[["s1_wcontr"]])
+  print(paste("N =", prod(sapply(args[["args_full"]], length))))
 
   do_ms_loops(fun = "msres_sensitivity", args = args,
     args_along = args_along, do_targets = TRUE, do_interactions = interactions)

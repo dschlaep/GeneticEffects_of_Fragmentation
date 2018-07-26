@@ -75,9 +75,12 @@ plot_cumul_ma <- function(data, responses, panels_vertical, dir_out, ftag_fix,
   w.panel <- 3; w.edgeL <- 0.5; w.edgeR <- 0.25
 
   # Plot
+  ftemp0 <- file.path(dir_out, "Figs_Checks")
+  dir.create(ftemp0, recursive = TRUE, showWarnings = FALSE)
+
   pdf(height = h.edgeL + h.panel * dim_fig[1] + h.edgeU,
     width = w.edgeL + w.panel * dim_fig[2] + w.edgeR,
-    file = file.path(dir_out, "Figs_Checks", paste0("Fig_CumulTime_", ftag_fix, ".pdf")))
+    file = file.path(ftemp0, paste0("Fig_CumulTime_", ftag_fix, ".pdf")))
 
   temp <- c(
     rep(0, 1 + dim_fig[1] + 1),
@@ -185,7 +188,10 @@ plot_diagnostics <- function(data, responses, dir_out, ftag_fix) {
 # Tabulate outliers
 table_outliers <- function(data, responses, dir_out, ftag_fix, clean = TRUE) {
 
-  ftable <- file.path(dir_out, "Tables", paste0("Table_Outliers_", ftag_fix, ".csv"))
+  ftemp0 <- file.path(dir_out, "Tables")
+  dir.create(ftemp0, recursive = TRUE, showWarnings = FALSE)
+
+  ftable <- file.path(ftemp0, paste0("Table_Outliers_", ftag_fix, ".csv"))
   if (clean) unlink(ftable)
 
   for (ir in seq_along(responses)) {
@@ -226,25 +232,31 @@ table_outliers <- function(data, responses, dir_out, ftag_fix, clean = TRUE) {
 # Tabulate publication bias (fail-safe numbers, 3-PSM)
 table_pubbias <- function(data, responses, dir_out, ftag_fix, clean = TRUE) {
 
-  ftable <- file.path(dir_out, "Tables", paste0("Table_PublicationBias_", ftag_fix, ".csv"))
+  ftable <- file.path(dir_out, "Tables",
+    paste0("Table_PublicationBias_", ftag_fix, ".csv"))
   if (clean) unlink(ftable)
 
-  Nfs_names <- unique(unlist(lapply(data, function(x) sapply(x[["Nfs"]], function(nfs) nfs[["type"]]))))
+  Nfs_names <- unique(unlist(lapply(data, function(x)
+    sapply(x[["Nfs"]], function(nfs) nfs[["type"]]))))
   Nfs_lengths <- length(Nfs_names)
 
   cols <- c("Response",
-    paste("TrimFill_MissingStudies", c("Estimator", "Side", "N", "se", "pvalue"), sep = "_"),
+    paste("TrimFill_MissingStudies",
+      c("Estimator", "Side", "N", "se", "pvalue"), sep = "_"),
 
-    paste("FailSafeN", Nfs_names, rep("N", each = Nfs_lengths), sep = "_"),
+    paste("FailSafeN", Nfs_names, rep(c("N", "pvalue"), each = Nfs_lengths),
+      sep = "_"),
 
     paste("FunnelPlotAsymmetry",
-      c(paste("RankCorTest_BeggMazumbar1994", c("KendallsTau", "pvalue"), sep = "_"),
-        paste("MixedEffectRegTest_Egger", c("predictor", "dfs", "zval", "pvalue"), sep = "_")
+      c(paste("RankCorTest_BeggMazumbar1994", c("KendallsTau", "pvalue"),
+        sep = "_"),
+        paste("MixedEffectRegTest_Egger",
+          c("predictor", "dfs", "zval", "pvalue"), sep = "_")
       ), sep = "_")
   )
 
-  dat_pubbias <- data.frame(matrix(NA, nrow = length(responses), ncol = length(cols),
-    dimnames = list(NULL, cols)))
+  dat_pubbias <- data.frame(matrix(NA, nrow = length(responses),
+    ncol = length(cols), dimnames = list(NULL, cols)))
 
   for (ir in seq_along(responses)) {
     x <- data[[responses[ir]]]
@@ -260,8 +272,9 @@ table_pubbias <- function(data, responses, dir_out, ftag_fix, clean = TRUE) {
 
     temp <- x[["Nfs"]]
     for (k in seq_len(Nfs_lengths)) {
-      temp_col <- paste0("FailSafeN_", temp[[Nfs_names[k]]][["type"]], "_N")
-      dat_pubbias[ir, temp_col] <- temp[[Nfs_names[k]]][["fsnum"]]
+      temp_col <- paste0("FailSafeN_", temp[[Nfs_names[k]]][["type"]])
+      dat_pubbias[ir, paste0(temp_col, "_N")] <- temp[[Nfs_names[k]]][["fsnum"]]
+      dat_pubbias[ir, paste0(temp_col, "_pvalue")] <- temp[[Nfs_names[k]]][["pval"]]
     }
 
 
@@ -304,16 +317,12 @@ msplot_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
   stopifnot(lengths(list(fragment_sizes., temp_withControlsL, cor_methods.,
     cor_transforms., weight_methods., effect_groups.)) == 1L)
 
-  temp1 <- if (temp_withControlsL) "withControls" else "withoutControls"
-  temp_cor_transforms <- if (cor_methods. == "pearson") {
-      cor_transforms.
-    } else {
-      "ztransform"
-    }
-  temp2 <- if (!only_useadj_standardized) "withNonStandardized" else "onlyStandardized"
-
-  ftag_fix <- paste(fragment_sizes., temp1, temp2, paste0("COR", cor_methods., "-", temp_cor_transforms),
-    weight_methods., "by", effect_groups., sep = "_")
+  # File identification
+  temp_withNonStandardizedL <- !only_useadj_standardized
+  ftag_fix <- filetag_ID(interaction_wHabitat3 = FALSE, fragment_sizes.,
+    withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+    cor_transforms., weight_methods.)
+  ftag_fix <- paste(ftag_fix, "by", effect_groups., sep = "_")
 
   #--- Load analysis outputs
   data <- list()
@@ -329,10 +338,12 @@ msplot_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
       } else {
         withNonStandardizedL.
       }
-    temp2 <- if (temp_withNonStandardizedL) "withNonStandardized" else "onlyStandardized"
 
-    ftag <- paste(responses[ir], "by", fragment_sizes., temp1, temp2, paste0("COR", cor_methods., "-", temp_cor_transforms),
-      weight_methods., "by", effect_groups., sep = "_")
+    ftag <- filetag_ID(interaction_wHabitat3 = FALSE, fragment_sizes.,
+      withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+      cor_transforms., weight_methods.)
+
+    ftag <- paste(responses[ir], "by", ftag, "by", effect_groups., sep = "_")
     fdata <- file.path(dir_resout, paste0(ftag, "_checks.rds"))
 
     if (file.exists(fdata)) {
@@ -358,27 +369,19 @@ msplot_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
 
 if (do_ms) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        effect_groups. = effect_groups,
-        dir_res = dir_res_, dir_out = dir_res0
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(effect_groups. = effect_groups,
+          dir_res = dir_res_, dir_out = dir_res0)
       )
 
     } else {
-      list(
-        only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = full_design[["s6_cortransform"]],
-        weight_methods. = full_design[["d7_weightmethod"]],
-        effect_groups. = effect_groups,
-        dir_res = dir_res_, dir_out = dir_res0
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(effect_groups. = effect_groups,
+          dir_res = dir_res_, dir_out = dir_res0)
       )
     }
 

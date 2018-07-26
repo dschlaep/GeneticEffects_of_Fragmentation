@@ -163,8 +163,8 @@ msres_table_Heterogeneity <- function(responses, moderators, interaction_wHabita
   dir <- file.path(dir_out, "Tables")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
 
-  write.csv(dat_out, file = file.path(dir, paste0("Table_HeterogeneityTests_", ftag, "_",
-    msdat[["tag_fix"]], ".csv")))
+  write.csv(dat_out, file = file.path(dir, paste0("Table_HeterogeneityTests_",
+    ftag, "_", msdat[["tag_fix"]], ".csv")))
 
 
   temp <- reshape2::melt(dat_het[["modlevs"]])
@@ -192,8 +192,8 @@ msres_table_Heterogeneity <- function(responses, moderators, interaction_wHabita
   dir <- file.path(dir_out, "Tables")
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
 
-  write.csv(dat_out, file = file.path(dir, paste0("Table_ModeratorLevelTests_", ftag, "_",
-    msdat[["tag_fix"]], ".csv")))
+  write.csv(dat_out, file = file.path(dir, paste0("Table_ModeratorLevelTests_",
+    ftag, "_", msdat[["tag_fix"]], ".csv")))
 
   invisible(TRUE)
 }
@@ -202,34 +202,17 @@ msres_table_Heterogeneity <- function(responses, moderators, interaction_wHabita
 
 if (do_ms) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
 
     } else {
-      # list(
-      #   only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-      #   only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-      #   fragment_sizes. = full_design[["s4_fragsize"]],
-      #   cor_methods. = full_design[["s5_cormethod"]],
-      #   cor_transforms. = full_design[["s6_cortransform"]],
-      #   weight_methods. = full_design[["d7_weightmethod"]],
-      #   dir_res = dir_res_
-      # )
-      list(
-        only_wo_controls = FALSE, withControlsL. = FALSE,
-        only_useadj_standardized = FALSE, withNonStandardizedL. = TRUE,
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
     }
 

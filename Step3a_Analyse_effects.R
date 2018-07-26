@@ -35,8 +35,8 @@ redos_rma <- list(
 )
 
 #--- Versions
-do_checkversion <- FALSE
-  fit_version <- numeric_version("2.2.2")
+do_check_outdatedversion <- FALSE
+  fit_version <- numeric_version("2.2.3")
   # Version 2.0.0: first version with version control
   # Version 2.0.1: wrap content of 'add_publicationbias' in try()
   # Version 2.1.0: if weights == "winvar", then weights = NULL; prior: weights = dat[, "winvar"]
@@ -57,6 +57,9 @@ do_checkversion <- FALSE
   # Version 2.2.2:
   #   - Multi-variate analysis for marker classes, i.e., allow sigma (residual heterogeneity)
   #     to vary between marker classes
+  # Version 2.2.3:
+  #   - `fit_multilevel`: calls `metafor:rma.mv` with a larger maximum of iteration steps
+  #     and adds the quasi-Newton method "BFGS" from 'optim' as a fourth optimization option
 
 
 # Paths
@@ -353,7 +356,6 @@ run_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FALS
   weight_methods. = weight_methods, deffects, dmoderators, dir_res, dos, redos) {
 
   temp_withControlsL <- if (only_wo_controls) FALSE else withControlsL.
-  temp_xHabitat3 <- if (interaction_wHabitat3) "modXhabitat" else ""
 
   for (ir in responses) {
     dtag <- paste0("Response_", ir)
@@ -371,9 +373,7 @@ run_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FALS
     for (ig in moderators) {
       for (ii in fragment_sizes.) {
         for (ic in temp_withControlsL) {
-          temp1 <- if (ic) "withControls" else "withoutControls"
           for (inn in temp_withNonStandardizedL) {
-            temp2 <- if (inn) "withNonStandardized" else "onlyStandardized"
             for (im in cor_methods.) {
               temp_cor_transforms <- if (im == "pearson") {
                   cor_transforms.
@@ -382,14 +382,10 @@ run_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FALS
                 }
               for (it in temp_cor_transforms) {
                 for (iw in weight_methods.) {
-
-                  ftag <- if (!interaction_wHabitat3) {
-                      paste(ir, ig, "by", ii, temp1, temp2,
-                        paste0("COR", im, "-", it), iw, sep = "_")
-                    } else {
-                      paste(ir, ig, "by", ii, temp1, temp2, temp_xHabitat3,
-                        paste0("COR", im, "-", it), iw, sep = "_")
-                    }
+                  # File identification
+                  ftag <- filetag_ID(interaction_wHabitat3, ii,
+                    ic, only_wo_controls = FALSE, inn, im, it, iw)
+                  ftag <- paste(ir, ig, "by", ftag, sep = "_")
 
                   print(paste(Sys.time(), "'run_metaanalysis':", ftag))
 
@@ -489,27 +485,19 @@ run_metaanalysis <- function(responses, moderators, interaction_wHabitat3 = FALS
 
 if (do_rma) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_,
-        dos = do_adds, redos = redos_rma
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_,
+        dos = do_adds, redos = redos_rma)
       )
 
     } else {
-      list(
-        only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = full_design[["s6_cortransform"]],
-        weight_methods. = full_design[["d7_weightmethod"]],
-        deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_,
-        dos = do_adds, redos = redos_rma
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_,
+        dos = do_adds, redos = redos_rma)
       )
     }
 
@@ -542,20 +530,22 @@ if (do_rma) {
 
 
 
-#------ Check version of analysis objects
-if (do_checkversion) {
-  ftemp <- list.files(dir_res_, pattern = ".rds", full.names = TRUE, recursive = TRUE)
+#------ Check for outdated version of analysis objects
+if (do_check_outdatedversion) {
+  ftemp <- list.files(file.path(dir_res_, "Results"), pattern = "_output.rds",
+    full.names = TRUE, recursive = TRUE)
 
   for (f in ftemp) {
     x <- readRDS(f)
 
-    if (is.environment(x) && "data" %in% names(x) && !is.null(x[["data"]][["n_cats"]])) {
-      x[["version"]] <- fit_version
-      saveRDS(x, f)
+    if (!(is.environment(x) && "version" %in% names(x) &&
+        x[["version"]] >= fit_version)) {
 
-    } else {
-      print(paste("delete", basename(f)))
-      unlink(f)
+      # move file to 'outdated' folder
+      dir_outdated <- paste0(dirname(f), "_outdated")
+      dir.create(dir_outdated, recursive = TRUE, showWarnings = FALSE)
+      file.rename(from = f, to = file.path(dir_outdated,
+        sub("_output.rds", "_output_outdated.rds", basename(f))))
     }
   }
 }

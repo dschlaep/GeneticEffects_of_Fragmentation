@@ -9,7 +9,7 @@ dir_fig <- file.path(dir_out, "Figures")
 
 # File names
 if (!exists("tag_newdate")) tag_newdate <- format(Sys.Date(), "%Y%m%d")
-if (!exists("tag_usedate")) tag_usedate <- "20171107"
+if (!exists("tag_usedate")) tag_usedate <- "20180705" #"20180112" # "20171107"
 
 fin <- file.path(dir_out, paste0(tag_usedate, "_ExtractedDataCleaned1_wide.rds"))
 foutw <- file.path(dir_out, paste0(tag_newdate, "_ExtractedDataCleaned2_wide.rds"))

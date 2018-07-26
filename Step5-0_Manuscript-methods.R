@@ -14,7 +14,8 @@ lab_responses <- data.frame(
 lab_fittypes <- data.frame(
   code = c("all_un", "all_mv", "aphylo", "pphylo"),
   out = c("RE", "ML", "MLAP", "MLPP"),
-  col = c("blue", "lightsteelblue", "mediumorchid3", "darkgreen"),
+    #inspired by http://colorbrewer2.org/#type=qualitative&scheme=Dark2&n=4
+  col = c("orangered", "darkslateblue", "purple2", "springgreen4"),
   stringsAsFactors = FALSE)
 #      temp <- lab_fittypes[match(fit_types, lab_fittypes[, "code"]), "out"]
 
@@ -341,21 +342,11 @@ msres_getdatatogether <- function(responses, moderators, interaction_wHabitat3 =
   stopifnot(lengths(list(fragment_sizes., temp_withControlsL, cor_methods.,
     cor_transforms., weight_methods.)) == 1L)
 
-  temp1 <- if (temp_withControlsL) "withControls" else "withoutControls"
-  temp_cor_transforms <- if (cor_methods. == "pearson") {
-      cor_transforms.
-    } else {
-      "ztransform"
-    }
-  temp2 <- if (!only_useadj_standardized) "withNonStandardized" else "onlyStandardized"
-
-  tag_fix <- if (interaction_wHabitat3) {
-      paste(fragment_sizes., temp1, temp2, temp_xHabitat3, paste0("COR", cor_methods., "-",
-        temp_cor_transforms), weight_methods., sep = "_")
-    } else {
-      paste(fragment_sizes., temp1, temp2, paste0("COR", cor_methods., "-",
-        temp_cor_transforms), weight_methods., sep = "_")
-    }
+  # File identification
+  temp_withNonStandardizedL <- !only_useadj_standardized
+  tag_fix <- filetag_ID(interaction_wHabitat3, fragment_sizes.,
+    withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+    cor_transforms., weight_methods.)
 
   fmsdata <- file.path(dir_out, paste0("MSdata_", ftag, "_", tag_fix, ".rds"))
 
@@ -387,15 +378,10 @@ msres_getdatatogether <- function(responses, moderators, interaction_wHabitat3 =
         } else {
           withNonStandardizedL.
         }
-      temp2 <- if (temp_withNonStandardizedL) "withNonStandardized" else "onlyStandardized"
 
-      ftag_fix <- if (!interaction_wHabitat3) {
-          paste(fragment_sizes., temp1, temp2, paste0("COR", cor_methods., "-",
-            temp_cor_transforms), weight_methods., sep = "_")
-        } else {
-          paste(fragment_sizes., temp1, temp2, temp_xHabitat3, paste0("COR", cor_methods., "-",
-            temp_cor_transforms), weight_methods., sep = "_")
-        }
+      ftag_fix <- filetag_ID(interaction_wHabitat3, fragment_sizes.,
+        withControlsL., only_wo_controls, temp_withNonStandardizedL, cor_methods.,
+        cor_transforms., weight_methods.)
 
       for (ig in seq_along(moderators)) {
         fname <- paste(responses[ir], moderators[ig], "by", ftag_fix, sep = "_")

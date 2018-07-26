@@ -82,34 +82,17 @@ msres_table_BloombergsK <- function(responses, moderators,
 
 if (do_ms) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
 
     } else {
-      # list(
-      #   only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-      #   only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-      #   fragment_sizes. = full_design[["s4_fragsize"]],
-      #   cor_methods. = full_design[["s5_cormethod"]],
-      #   cor_transforms. = full_design[["s6_cortransform"]],
-      #   weight_methods. = full_design[["d7_weightmethod"]],
-      #   dir_res = dir_res_
-      # )
-      list(
-        only_wo_controls = FALSE, withControlsL. = FALSE,
-        only_useadj_standardized = FALSE, withNonStandardizedL. = TRUE,
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        dir_res = dir_res_, panels_vertical = FALSE
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(dir_res = dir_res_, panels_vertical = FALSE)
       )
     }
 

@@ -127,9 +127,7 @@ run_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
       }
     for (indep in fragment_sizes.) {
       for (wcontr in temp_withControlsL) {
-        temp1 <- if (wcontr) "withControls" else "withoutControls"
         for (wnonnorm in temp_withNonStandardizedL) {
-          temp2 <- if (wnonnorm) "withNonStandardized" else "onlyStandardized"
           for (method in cor_methods.) {
             temp_cor_transforms <- if (method == "pearson") {
                 cor_transforms.
@@ -139,9 +137,11 @@ run_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
             for (tf in temp_cor_transforms) {
               for (win in weight_methods.) {
                 for (ieg in effect_groups.) {
-
-                  ftag <- paste(ir, "by", indep, temp1, temp2, paste0("COR", method, "-", tf),
-                    win, "by", ieg, sep = "_")
+                  # File identification
+                  ftag <- filetag_ID(interaction_wHabitat3 = FALSE, indep,
+                    wcontr, only_wo_controls = FALSE, wnonnorm,
+                    method, tf, win)
+                  ftag <- paste(ir, "by", ftag, "by", ieg, sep = "_")
 
                   print(paste(Sys.time(), "'run checks':", ftag))
 
@@ -198,27 +198,17 @@ run_metachecks <- function(responses, fragment_sizes. = fragment_sizes,
 
 if (do_checks) {
   template_args <- if (do_targets) {
-      list(
-        only_wo_controls = TRUE, withControlsL. = std_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = std_design[["s2_wnonnorm"]],
-        fragment_sizes. = std_design[["s4_fragsize"]],
-        cor_methods. = std_design[["s5_cormethod"]],
-        cor_transforms. = std_design[["s6_cortransform"]],
-        weight_methods. = std_design[["d7_weightmethod"]],
-        effect_groups. = effect_groups,
-        deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_
+      c(
+        list(only_wo_controls = TRUE),
+        design_arguments[["args_target"]],
+        list(deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_)
       )
 
     } else {
-      list(
-        only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-        only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-        fragment_sizes. = full_design[["s4_fragsize"]],
-        cor_methods. = full_design[["s5_cormethod"]],
-        cor_transforms. = full_design[["s6_cortransform"]],
-        weight_methods. = full_design[["d7_weightmethod"]],
-        effect_groups. = effect_groups,
-        deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_
+      c(
+        list(only_wo_controls = FALSE),
+        design_arguments[["args_full"]],
+        list(deffects = deffects, dmoderators = dmoderators, dir_res = dir_res_)
       )
     }
 

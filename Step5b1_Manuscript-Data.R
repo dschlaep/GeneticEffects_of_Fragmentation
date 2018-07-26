@@ -17,15 +17,10 @@ source(file.path(dir_ana, "Step5-0_Manuscript-methods.R"))
 
 if (do_ms_data) {
   #--- targets
-  template_args <-
-    list(
-      only_wo_controls = TRUE, withControlsL. = FALSE,
-      only_useadj_standardized = FALSE, withNonStandardizedL. = TRUE,
-      fragment_sizes. = std_design[["s4_fragsize"]],
-      cor_methods. = std_design[["s5_cormethod"]],
-      cor_transforms. = std_design[["s6_cortransform"]],
-      weight_methods. = std_design[["d7_weightmethod"]],
-      dir_res = dir_res_, dir_out = dir_ms_out
+  template_args <- c(
+      list(only_wo_controls = TRUE),
+      design_arguments[["args_target"]],
+      list(dir_res = dir_res_, dir_out = dir_ms_out)
     )
 
   template_args <- expand.grid(template_args, stringsAsFactors = FALSE)
@@ -37,24 +32,10 @@ if (do_ms_data) {
 
 
   #--- all
-  template_args <-
-    # list(
-    #   only_wo_controls = FALSE, withControlsL. = full_design[["s1_wcontr"]],
-    #   only_useadj_standardized = FALSE, withNonStandardizedL. = full_design[["s2_wnonnorm"]],
-    #   fragment_sizes. = full_design[["s4_fragsize"]],
-    #   cor_methods. = full_design[["s5_cormethod"]],
-    #   cor_transforms. = full_design[["s6_cortransform"]],
-    #   weight_methods. = full_design[["d7_weightmethod"]],
-    #   dir_res = dir_res_, dir_out = dir_ms_out
-    # )
-    list(
-      only_wo_controls = FALSE, withControlsL. = FALSE,
-      only_useadj_standardized = FALSE, withNonStandardizedL. = TRUE,
-      fragment_sizes. = full_design[["s4_fragsize"]],
-      cor_methods. = full_design[["s5_cormethod"]],
-      cor_transforms. = std_design[["s6_cortransform"]],
-      weight_methods. = std_design[["d7_weightmethod"]],
-      dir_res = dir_res_, dir_out = dir_ms_out
+  template_args <- c(
+      list(only_wo_controls = FALSE),
+      design_arguments[["args_full"]],
+      list(dir_res = dir_res_, dir_out = dir_ms_out)
     )
 
   template_args <- expand.grid(template_args, stringsAsFactors = FALSE)

@@ -21,6 +21,7 @@ tag <- format(Sys.Date(), "%Y%m%d")
 fout <- file.path(dir_out1, paste0(tag, "_PRISM-diagram.rds"))
 ffig <- file.path(dir_res0, "Figs_PRISM", paste0("Fig_PRISM-plot_v", tag, ".pdf"))
 
+dir.create(dirname(ffig), recursive = TRUE, showWarnings = FALSE)
 
 
 #------------------------------------
